@@ -1,0 +1,30 @@
+name: Daily AI News
+
+on:
+  schedule:
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+
+jobs:
+  send-news:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Send AI news to Slack
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+          MAX_ITEMS: ${{ vars.MAX_ITEMS || '3' }}
+          QUERY_TERMS: ${{ vars.QUERY_TERMS || '生成AI,LLM,大規模言語モデル,OpenAI,Anthropic,Google DeepMind' }}
+        run: npm run send
