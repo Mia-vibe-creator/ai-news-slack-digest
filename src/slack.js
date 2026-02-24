@@ -33,21 +33,21 @@ function buildNewsBlocks(newsItems) {
 
   const blocks = [header, { type: 'divider' }];
 
-  for (const item of newsItems) {
+  newsItems.forEach((item, index) => {
     blocks.push({
       type: 'section',
       text: {
         type: 'mrkdwn',
         text: [
-          `*<${item.link}|${item.title}>*`,
-          `出典: ${item.source || '不明'} | 公開: ${formatDateJst(item.pubDate)} JST`,
-          `${item.summary}`
+          `*${index + 1}. <${item.link}|${item.title}>*`,
+          `出典: ${item.source || '不明'} | 公開時刻: ${formatDateJst(item.pubDate)} JST`,
+          `要約: ${item.summary}`
         ].join('\n')
       }
     });
 
     blocks.push({ type: 'divider' });
-  }
+  });
 
   return blocks;
 }

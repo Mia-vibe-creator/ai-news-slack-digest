@@ -23,4 +23,7 @@ test('buildNewsBlocks includes title and link', () => {
   const section = blocks.find((b) => b.type === 'section' && b.text && b.text.text.includes('Test Title'));
   assert.ok(section);
   assert.ok(section.text.text.includes('https://example.com'));
+  assert.ok(section.text.text.includes('1.'));
+  assert.ok(section.text.text.includes('出典: Example'));
+  assert.ok(section.text.text.includes('要約: Summary'));
 });
