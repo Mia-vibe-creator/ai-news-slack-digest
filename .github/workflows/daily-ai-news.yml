@@ -3,6 +3,7 @@ name: Daily AI News
 on:
   schedule:
     - cron: '3 1 * * *'
+    - cron: '3 4 * * *'
   workflow_dispatch:
 
 jobs:
@@ -26,5 +27,5 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
           MAX_ITEMS: ${{ vars.MAX_ITEMS || '3' }}
-          QUERY_TERMS: ${{ vars.QUERY_TERMS || '生成AI,LLM,大規模言語モデル,OpenAI,Anthropic,Google DeepMind' }}
+          QUERY_TERMS: ${{ vars.QUERY_TERMS || '生成AI 活用事例,生成AI 導入事例 企業,LLM セキュリティ,生成AI ガバナンス,AI規制,RAG エージェント' }}
         run: npm run send

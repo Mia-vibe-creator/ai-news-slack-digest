@@ -1,12 +1,18 @@
-# Daily AI News to Slack (GitHub Actions)
+# Daily AI PM Brief to Slack (GitHub Actions)
 
-Google News RSS from Japanese AI topics is collected daily and posted to Slack.
+Google News RSS from Japanese generative-AI topics is collected and posted to Slack for PM-focused learning.
 
 ## Architecture
 
-- GitHub Actions schedule (`10:00 JST` daily)
+- GitHub Actions schedule (`10:03 JST` and `13:03 JST` daily)
 - Node.js script (`npm run send`)
 - Slack Bot (`chat.postMessage`)
+
+## What is optimized for PM use
+
+- Prioritizes security, governance/regulation, use cases, and implementation topics
+- Tags each item with a category
+- Adds one-line proposal insight for client work
 
 ## Prerequisites
 
@@ -41,13 +47,11 @@ Create repository secrets:
 Optional repository variables:
 
 - `MAX_ITEMS` (default `3`)
-- `QUERY_TERMS` (default: `生成AI,LLM,大規模言語モデル,OpenAI,Anthropic,Google DeepMind`)
+- `QUERY_TERMS` (default: `生成AI 活用事例,生成AI 導入事例 企業,LLM セキュリティ,生成AI ガバナンス,AI規制,RAG エージェント`)
 
 Workflow file:
 
 - `.github/workflows/daily-ai-news.yml`
-
-Schedule is set to UTC `01:00` (= JST `10:00`).
 
 ## Run once manually
 
