@@ -1,5 +1,6 @@
 const { collectLatestNews } = require('./rss');
-const { postToSlack } = require('./slack');
+const { getDailyConcepts } = require('./concepts');
+const { postConceptToSlack, postToSlack } = require('./slack');
 
 function parseMaxItems() {
   const value = Number.parseInt(process.env.MAX_ITEMS || '3', 10);
@@ -17,6 +18,13 @@ async function runDailyNews() {
   return newsItems.length;
 }
 
+async function runDailyConcept() {
+  const concepts = getDailyConcepts();
+  await postConceptToSlack(concepts);
+  return concepts.map((concept) => concept.title).join(', ');
+}
+
 module.exports = {
+  runDailyConcept,
   runDailyNews
 };

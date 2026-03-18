@@ -4,7 +4,7 @@ Google News RSS from Japanese generative-AI topics is collected and turned into 
 
 ## Architecture
 
-- GitHub Actions schedule (`10:00 JST` daily)
+- GitHub Actions schedule (`10:00 JST` news brief, `14:00 JST` concept brief with 2 concepts)
 - Node.js script (`npm run send`)
 - Slack Bot (`chat.postMessage`)
 
@@ -13,6 +13,8 @@ Google News RSS from Japanese generative-AI topics is collected and turned into 
 - Prioritizes security, governance/regulation, use cases, and implementation topics
 - Extracts the day's themes instead of sending a long list of links
 - Synthesizes what to learn, how to use it at work, and proposal implications
+- Sends a separate daily concept brief for AI / IT / UIUX fundamentals you use in client work
+- Expands concept coverage beyond your initial list to common, high-frequency industry terms
 
 ## Prerequisites
 
