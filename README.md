@@ -1,18 +1,18 @@
 # Daily AI PM Brief to Slack (GitHub Actions)
 
-Google News RSS from Japanese generative-AI topics is collected and posted to Slack for PM-focused learning.
+Google News RSS from Japanese generative-AI topics is collected and turned into a PM-focused daily learning brief for Slack.
 
 ## Architecture
 
-- GitHub Actions schedule (`10:03 JST` and `13:03 JST` daily)
+- GitHub Actions schedule (`10:00 JST` daily)
 - Node.js script (`npm run send`)
 - Slack Bot (`chat.postMessage`)
 
 ## What is optimized for PM use
 
 - Prioritizes security, governance/regulation, use cases, and implementation topics
-- Tags each item with a category
-- Adds one-line proposal insight for client work
+- Extracts the day's themes instead of sending a long list of links
+- Synthesizes what to learn, how to use it at work, and proposal implications
 
 ## Prerequisites
 
