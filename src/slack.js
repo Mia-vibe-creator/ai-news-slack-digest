@@ -15,9 +15,19 @@ function uniqueNonEmpty(values) {
 }
 
 function buildThemeSummary(newsItems) {
-  const topics = uniqueNonEmpty(newsItems.map((item) => item.topic)).slice(0, 3);
+  const topics = uniqueNonEmpty(newsItems.map((item) => item.topic).filter((topic) => topic && topic !== 'その他')).slice(0, 3);
   if (topics.length === 0) {
-    return '今日は大きな論点が分散しています。';
+    const titleText = newsItems.map((item) => item.title).join(' ');
+    if (titleText.includes('リスク') || titleText.includes('ガバナンス') || titleText.includes('契約')) {
+      return '今日は「AI導入時のリスク管理とガバナンス整備」が中心論点です。';
+    }
+    if (titleText.includes('連携') || titleText.includes('統合') || titleText.includes('運用')) {
+      return '今日は「AIを既存業務やシステムにどう接続するか」が中心論点です。';
+    }
+    if (titleText.includes('NVIDIA') || titleText.includes('カンファレンス') || titleText.includes('発表')) {
+      return '今日は「市場トレンドを踏まえた次の実装テーマ」が中心論点です。';
+    }
+    return '今日は「生成AIを実務へどう安全に組み込むか」が中心論点です。';
   }
   if (topics.length === 1) {
     return `今日は「${topics[0]}」が中心です。`;
@@ -90,6 +100,9 @@ function buildNewsBlocks(newsItems) {
   const referenceLines = newsItems.slice(0, 3).map((item, index) =>
     `${index + 1}. <${item.link}|${item.title}> (${item.topic || 'その他'} / ${item.source || '不明'})`
   );
+  const filledLearnLines = learnLines.length > 0 ? learnLines : ['- 学び: 今日の話題を導入条件、業務価値、運用設計の3視点で読み替える'];
+  const filledActionLines = actionLines.length > 0 ? actionLines : ['- 活用: ニュースそのものではなく、提案論点に翻訳して社内メモ化する'];
+  const filledInsightLines = insightLines.length > 0 ? insightLines : ['- 提案観点: クライアント課題と実装条件に接続できる情報だけを残す'];
 
   const header = {
     type: 'section',
@@ -104,11 +117,11 @@ function buildNewsBlocks(newsItems) {
     { type: 'divider' },
     buildSummarySection('今日の論点', [buildThemeSummary(newsItems)]),
     { type: 'divider' },
-    buildSummarySection('今日学ぶこと', learnLines),
+    buildSummarySection('今日学ぶこと', filledLearnLines),
     { type: 'divider' },
-    buildSummarySection('仕事での活用', actionLines),
+    buildSummarySection('仕事での活用', filledActionLines),
     { type: 'divider' },
-    buildSummarySection('提案観点', insightLines),
+    buildSummarySection('提案観点', filledInsightLines),
     { type: 'divider' },
     buildSummarySection('参考ニュース', referenceLines)
   ];
