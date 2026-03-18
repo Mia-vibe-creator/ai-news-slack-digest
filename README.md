@@ -28,6 +28,8 @@ Use `.env.example` as reference:
 
 - `SLACK_BOT_TOKEN`: Bot token (`xoxb-...`)
 - `SLACK_CHANNEL`: channel ID (`C...`)
+- `OPENAI_API_KEY`: OpenAI API key for LLM-based news summarization
+- `OPENAI_MODEL`: optional, default `gpt-4o-mini`
 - `MAX_ITEMS`: default `3`
 - `QUERY_TERMS`: comma-separated query terms
 
@@ -45,6 +47,7 @@ Create repository secrets:
 
 - `SLACK_BOT_TOKEN`
 - `SLACK_CHANNEL`
+- `OPENAI_API_KEY`
 
 Optional repository variables:
 
@@ -67,3 +70,4 @@ Workflow file:
 - If no new articles in the past 24 hours are found, it posts a fallback message.
 - Duplicate links are removed before posting.
 - If Google News RSS fetch fails for some queries, successful queries are still used.
+- News summarization uses OpenAI when `OPENAI_API_KEY` is set; otherwise it falls back to rule-based summarization.

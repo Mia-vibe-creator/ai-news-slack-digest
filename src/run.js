@@ -1,5 +1,6 @@
 const { collectLatestNews } = require('./rss');
 const { getDailyConcepts } = require('./concepts');
+const { summarizeNewsForPm } = require('./news-brief');
 const { postConceptToSlack, postToSlack } = require('./slack');
 
 function parseMaxItems() {
@@ -14,7 +15,8 @@ function parseMaxItems() {
 async function runDailyNews() {
   const maxItems = parseMaxItems();
   const newsItems = await collectLatestNews(maxItems);
-  await postToSlack(newsItems);
+  const brief = await summarizeNewsForPm(newsItems);
+  await postToSlack(brief);
   return newsItems.length;
 }
 
