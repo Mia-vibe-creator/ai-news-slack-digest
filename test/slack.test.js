@@ -18,6 +18,8 @@ test('buildNewsBlocks includes PM summary sections', () => {
         link: 'https://example.com',
         source: 'Example',
         topic: 'セキュリティ',
+        confidenceLevel: '高',
+        confidenceReason: '一次情報で確認可能',
         summary: 'これは要約です。',
         learning: 'ここから学ぶべきことです。',
         pmUse: '提案や要件定義にこう使います。'
@@ -27,6 +29,7 @@ test('buildNewsBlocks includes PM summary sections', () => {
 
   const sections = blocks.filter((b) => b.type === 'section');
   assert.ok(sections.some((b) => b.text.text.includes('ニュース 1')));
+  assert.ok(sections.some((b) => b.text.text.includes('情報確度: 高（一次情報で確認可能）')));
   assert.ok(sections.some((b) => b.text.text.includes('要約: これは要約です。')));
   assert.ok(sections.some((b) => b.text.text.includes('学び: ここから学ぶべきことです。')));
   assert.ok(sections.some((b) => b.text.text.includes('PM活用観点: 提案や要件定義にこう使います。')));

@@ -20,6 +20,12 @@ function buildSummarySection(title, lines) {
   };
 }
 
+function stripLeadingLabel(text) {
+  return String(text || '')
+    .replace(/^\s*(要約|学び|活用|PM活用観点|提案観点|確信度|情報確度|確度)\s*[:：]\s*/u, '')
+    .trim();
+}
+
 function buildConceptSection(concept, index) {
   return buildSummarySection(`概念 ${index + 1}`, [
     `*${concept.title}*`,
@@ -81,9 +87,10 @@ function buildNewsBlocks(brief) {
     buildSummarySection(`ニュース ${index + 1}`, [
       `*<${item.link}|${item.title}>*`,
       `出典: ${item.source || '不明'} | カテゴリ: ${item.topic || 'その他'}`,
-      `要約: ${item.summary}`,
-      `学び: ${item.learning}`,
-      `PM活用観点: ${item.pmUse}`
+      `情報確度: ${stripLeadingLabel(item.confidenceLevel || '中')}（${stripLeadingLabel(item.confidenceReason || '主要メディア報道だが一次情報の確認余地あり')}）`,
+      `要約: ${stripLeadingLabel(item.summary)}`,
+      `学び: ${stripLeadingLabel(item.learning)}`,
+      `PM活用観点: ${stripLeadingLabel(item.pmUse)}`
     ]),
     { type: 'divider' }
   ]);
