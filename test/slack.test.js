@@ -20,19 +20,19 @@ test('buildNewsBlocks includes PM summary sections', () => {
         topic: 'セキュリティ',
         confidenceLevel: '高',
         confidenceReason: '一次情報で確認可能',
-        summary: 'これは要約です。',
-        learning: 'ここから学ぶべきことです。',
-        pmUse: '提案や要件定義にこう使います。'
+        point: '権限制御が標準化され、AI連携の監査運用が実装可能になった。',
+        marketLearning: '市場では導入検討が機能比較から統制設計込みへ移行している。',
+        consultUse: '金融クライアントの提案資料に監査要件テンプレートとして組み込む。'
       }
     ]
   });
 
   const sections = blocks.filter((b) => b.type === 'section');
-  assert.ok(sections.some((b) => b.text.text.includes('ニュース 1')));
-  assert.ok(sections.some((b) => b.text.text.includes('*🧭 情報確度:* [高] 一次情報で確認可能')));
-  assert.ok(sections.some((b) => b.text.text.includes('*📌 要約:* これは要約です。')));
-  assert.ok(sections.some((b) => b.text.text.includes('*💡 学び:* ここから学ぶべきことです。')));
-  assert.ok(sections.some((b) => b.text.text.includes('*📊 戦略的活用:* 提案や要件定義にこう使います。')));
+  assert.ok(sections.some((b) => b.text.text.includes('ニュース1： <https://example.com|Test Title>')));
+  assert.ok(sections.some((b) => b.text.text.includes('*🛡️ 確度:* [高] | *📂 カテゴリ:* セキュリティ')));
+  assert.ok(sections.some((b) => b.text.text.includes('*📌 要点:* 権限制御が標準化され、AI連携の監査運用が実装可能になった。')));
+  assert.ok(sections.some((b) => b.text.text.includes('*🌍 市場の学び（トレンド）:* 市場では導入検討が機能比較から統制設計込みへ移行している。')));
+  assert.ok(sections.some((b) => b.text.text.includes('*🚀 コンサル活用（具体策）:* 金融クライアントの提案資料に監査要件テンプレートとして組み込む。')));
   assert.ok(sections.some((b) => b.text.text.includes('https://example.com')));
 });
 

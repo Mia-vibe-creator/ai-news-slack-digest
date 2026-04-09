@@ -4,12 +4,12 @@ const { summarizeNewsForPm } = require('./news-brief');
 const { postConceptToSlack, postToSlack } = require('./slack');
 
 function parseMaxItems() {
-  const value = Number.parseInt(process.env.MAX_ITEMS || '3', 10);
+  const value = Number.parseInt(process.env.MAX_ITEMS || '1', 10);
   if (Number.isNaN(value) || value <= 0) {
-    return 3;
+    return 1;
   }
 
-  return Math.min(value, 20);
+  return Math.min(value, 5);
 }
 
 async function runDailyNews() {

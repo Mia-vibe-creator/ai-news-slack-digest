@@ -1,14 +1,14 @@
 function buildRuleBasedBrief(newsItems) {
   return {
-    items: newsItems.slice(0, 3).map((item) => ({
+    items: newsItems.slice(0, 1).map((item) => ({
       ...inferConfidence(item),
       title: item.title,
       link: item.link,
       source: item.source || '不明',
       topic: item.topic || 'その他',
-      summary: buildFallbackSummary(item),
-      learning: item.learn || 'このニュースを導入条件、業務価値、運用設計の観点で読み替える',
-      pmUse: item.action || '提案論点へ翻訳して、要件定義や提案資料に反映する'
+      point: buildFallbackSummary(item),
+      marketLearning: item.learn || '市場全体では導入条件の明確化と運用標準化が進み、比較検討の軸が実装容易性へシフトしている。',
+      consultUse: item.action || 'クライアント提案では、導入効果だけでなく運用条件とリスク統制を同時提示する。'
     }))
   };
 }
@@ -39,14 +39,22 @@ function normalizeLlmItems(parsedItems, newsItems) {
         return null;
       }
 
-      const sourceSummary = cleanField(sourceItem.summary, 500);
-      const summaryCandidate = cleanField(entry.summaryJa || '', 500);
-      const summary = chooseSummary(summaryCandidate, sourceItem.title, sourceSummary, sourceItem);
+      const sourceSummary = cleanField(sourceItem.summary, 180);
+      const pointCandidate = cleanField(entry.point || entry.summaryJa || '', 60);
+      const point = chooseSummary(pointCandidate, sourceItem.title, sourceSummary, sourceItem);
       const fallbackConfidence = inferConfidence(sourceItem);
       const confidenceLevel = normalizeConfidenceLevel(entry.confidenceLevel || fallbackConfidence.confidenceLevel);
       const confidenceReason =
         cleanField(stripKnownLabel(entry.confidenceReason), 80) ||
         fallbackConfidence.confidenceReason;
+      const marketLearning =
+        cleanField(stripKnownLabel(entry.marketLearning || entry.learning), 300) ||
+        cleanField(stripKnownLabel(sourceItem.learn), 300) ||
+        '市場全体では導入条件の明確化と運用標準化が進み、比較検討の軸が実装容易性へシフトしている。';
+      const consultUse =
+        cleanField(stripKnownLabel(entry.consultUse || entry.pmUse), 300) ||
+        cleanField(stripKnownLabel(sourceItem.action), 300) ||
+        'クライアント提案では、導入効果だけでなく運用条件とリスク統制を同時提示する。';
 
       return {
         title: cleanField(entry.titleJa, 200) || sourceItem.title,
@@ -55,24 +63,18 @@ function normalizeLlmItems(parsedItems, newsItems) {
         topic: sourceItem.topic || 'その他',
         confidenceLevel,
         confidenceReason,
-        summary,
-        learning:
-          cleanField(stripKnownLabel(entry.learning), 300) ||
-          cleanField(stripKnownLabel(sourceItem.learn), 300) ||
-          'このニュースから重要ポイントを整理する',
-        pmUse:
-          cleanField(stripKnownLabel(entry.pmUse), 300) ||
-          cleanField(stripKnownLabel(sourceItem.action), 300) ||
-          '提案や要件整理に使える論点へ翻訳する'
+        point,
+        marketLearning,
+        consultUse
       };
     })
     .filter(Boolean)
-    .slice(0, 3);
+    .slice(0, 1);
 }
 
 function stripKnownLabel(text) {
   return String(text || '')
-    .replace(/^\s*(要約|学び|活用|PM活用観点|提案観点|確信度|情報確度|確度)\s*[:：]\s*/u, '')
+    .replace(/^\s*(要約|要点|学び|市場の学び|市場の学び（トレンド）|活用|コンサル活用|コンサル活用（具体策）|PM活用観点|提案観点|確信度|情報確度|確度)\s*[:：]\s*/u, '')
     .trim();
 }
 
@@ -97,10 +99,15 @@ function normalizeForCompare(text) {
 
 function looksTooAbstract(text) {
   const normalized = cleanField(text);
-  if (!normalized || normalized.length < 45) {
+  if (!normalized || normalized.length < 18) {
     return true;
   }
-  return /(中心です|話題です|注目です|分散しています|重要です)$/u.test(normalized);
+  return /(中心です|話題です|注目です|分散しています|重要です|です。)$/u.test(normalized);
+}
+
+function hasMetaReportingTone(text) {
+  const normalized = cleanField(text);
+  return /(報道|記事|ニュース|メディア|取材|～を公開|を公開した)/u.test(normalized);
 }
 
 function formatDateJstShort(date) {
@@ -131,35 +138,29 @@ function chooseSummary(candidate, title, fallback, sourceItem) {
   );
 
   const fallbackLooksWeak = !fallback || normalizeForCompare(fallback) === normalizedTitle || looksTooAbstract(fallback);
-  if (looksLikeTitleRepeat || looksTooAbstract(candidate)) {
+  if (looksLikeTitleRepeat || looksTooAbstract(candidate) || hasMetaReportingTone(candidate)) {
     return fallbackLooksWeak ? narrativeFallback : fallback;
   }
 
-  return candidate;
+  return cleanField(candidate, 60);
 }
 
 function buildFallbackSummary(sourceItem) {
-  const who = sourceItem?.source || '報道機関';
-  const when = formatDateJstShort(sourceItem?.pubDate);
   const what = cleanField(sourceItem?.title, 120) || 'AI関連動向';
   const topic = sourceItem?.topic || 'その他';
   const summary = cleanField(sourceItem?.summary, 180);
-  const method = summary && summary !== what ? summary : `${topic}に関する取り組み内容が報じられました`;
-
-  return cleanField(
-    `${when}に${who}が、${what}を報道。記事では${method}。実務では導入条件・運用体制・成果指標を分けて評価することが重要です。`,
-    500
-  );
+  const core = summary && summary !== what ? summary : what;
+  return cleanField(`運用方針が更新され、${core}により実務への適用判断が進む。`, 60);
 }
 
 function normalizeConfidenceLevel(value) {
   const text = String(value || '').trim();
-  if (['高', '中', '要検証'].includes(text)) {
+  if (['高', '中', '低'].includes(text)) {
     return text;
   }
 
-  if (text === '低') {
-    return '要検証';
+  if (text === '要検証') {
+    return '低';
   }
 
   return '中';
@@ -173,7 +174,7 @@ function inferConfidence(item) {
 
   if (/PR TIMES|Business Wire|共同通信PRワイヤー/i.test(combined)) {
     return {
-      confidenceLevel: '要検証',
+      confidenceLevel: '低',
       confidenceReason: '企業発表中心のため、一次情報の裏取りを推奨'
     };
   }
@@ -216,15 +217,17 @@ async function summarizeNewsForPm(newsItems) {
         'あなたは生成AIのコンサルタント兼プロジェクトマネージャー向けのニュース編集者です。',
         '与えられたニュース候補だけを根拠に、日本語で短く、具体的に要約してください。',
         '入力に英語のタイトルや要約が含まれる場合は、まず自然な日本語へ翻訳してから解釈してください。',
-        '要約はタイトルの言い換えを禁止。自然な文章の中で「誰が・いつ・何を・どうやって・結果/影響」を読み取れる形で含める（見出し形式の列挙は禁止）。',
+        '【要約の黄金律】タイトルと重複する単語は最小限にし、「何が変わったか」と「何ができるようになったか」に集中する。',
+        '要約は60文字以内・1文で作成。メタ情報（例: 〜が報道した、〜の記事によると）は禁止。',
+        '自然な文章の中で5W1Hが読み取れること。見出し形式の列挙は禁止。',
         'タイトルにない具体情報を必ず入れ、可能なら数字を1つ以上入れる。数字がない場合は成功/失敗の要因を1つ以上入れる。',
-        '情報が不足する場合は、該当箇所を「不明」と明記する。',
-        '各ニュースごとに、500字以内の要約、学び、PMとしての活用観点を日本語で作成してください。',
-        'PM活用観点は、AIコンサル/マーケティングコンサルの実務でどう使うかを書く。特に「提案資料化」「広告運用」「LTV改善」「要件定義」のいずれかに結び付ける。',
-        '各ニュースに「情報確度」を付ける。値は「高」「中」「要検証」のいずれか。加えて20〜80文字で根拠を書く。',
+        '市場の学び（トレンド）は、市場全体の変化や競合の動きを具体的に1〜2文で書く。',
+        'コンサル活用（具体策）は、特定のクライアント提案・資料・打ち手にどう使うかを具体的に1〜2文で書く。',
+        '各ニュースに「確度」を付ける。値は「低」「中」「高」のいずれか。加えて20〜80文字で根拠を書く。',
+        '出力は必ず1件のみ。',
         '参考ニュース欄には、英語タイトルなら日本語訳タイトルを返してください。',
         '出力はJSONのみ。推測で事実を足さないでください。',
-        'JSON形式: {"items":[{"index":1,"titleJa":"","summaryJa":"","learning":"","pmUse":"","confidenceLevel":"","confidenceReason":""}]}'
+        'JSON形式: {"items":[{"index":1,"titleJa":"","point":"","marketLearning":"","consultUse":"","confidenceLevel":"","confidenceReason":""}]}'
       ].join('\n'),
       input: prompt,
       text: {

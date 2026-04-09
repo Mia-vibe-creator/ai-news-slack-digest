@@ -11,7 +11,7 @@ Google News RSS from Japanese generative-AI topics is collected and turned into 
 ## What is optimized for PM use
 
 - Prioritizes security, governance/regulation, use cases, and implementation topics
-- For each of up to 3 news items, delivers a short summary, key learning, and PM use case
+- Selects the single highest-value news item and delivers a consultant-oriented brief
 - Sends a separate daily concept brief for AI / IT / UIUX fundamentals you use in client work
 - Expands concept coverage beyond your initial list to common, high-frequency industry terms
 
@@ -29,7 +29,7 @@ Use `.env.example` as reference:
 - `SLACK_CHANNEL`: channel ID (`C...`)
 - `OPENAI_API_KEY`: OpenAI API key for LLM-based news summarization
 - `OPENAI_MODEL`: optional, default `gpt-4o-mini`
-- `MAX_ITEMS`: default `3`
+- `MAX_ITEMS`: default `1`
 - `QUERY_TERMS`: comma-separated query terms
 
 ## Local run
@@ -50,7 +50,7 @@ Create repository secrets:
 
 Optional repository variables:
 
-- `MAX_ITEMS` (default `3`)
+- `MAX_ITEMS` (default `1`)
 - `QUERY_TERMS` (default: `生成AI 活用事例,生成AI 導入事例 企業,LLM セキュリティ,生成AI ガバナンス,AI規制,RAG エージェント`)
 
 Workflow file:
