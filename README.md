@@ -7,6 +7,7 @@ Google News RSS from Japanese generative-AI topics is collected and turned into 
 - GitHub Actions schedule (`10:00 JST` news brief, `14:00 JST` concept brief with 2 concepts)
 - Node.js script (`npm run send`)
 - Slack Bot (`chat.postMessage`)
+- News collection mixes Google News RSS with primary-source feeds (OpenAI/Anthropic/Google/AWS/Microsoft/Hugging Face/arXiv)
 
 ## What is optimized for PM use
 

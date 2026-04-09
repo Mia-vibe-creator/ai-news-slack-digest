@@ -9,6 +9,17 @@ const DEFAULT_QUERIES = [
   'RAG エージェント'
 ];
 
+const PRIMARY_FEEDS = [
+  { label: 'OpenAI', url: 'https://openai.com/news/rss.xml' },
+  { label: 'Anthropic', url: 'https://www.anthropic.com/news/rss.xml' },
+  { label: 'Google AI Blog', url: 'https://blog.google/technology/ai/rss/' },
+  { label: 'Microsoft Blog', url: 'https://blogs.microsoft.com/feed/' },
+  { label: 'AWS ML Blog', url: 'https://aws.amazon.com/blogs/machine-learning/feed/' },
+  { label: 'Hugging Face', url: 'https://huggingface.co/blog/feed.xml' },
+  { label: 'arXiv cs.AI', url: 'https://export.arxiv.org/rss/cs.AI' },
+  { label: 'arXiv cs.CL', url: 'https://export.arxiv.org/rss/cs.CL' }
+];
+
 const TOPIC_RULES = [
   { label: 'セキュリティ', keywords: ['セキュリティ', '脆弱性', '漏えい', '対策', '認証', '監査', 'リスク'] },
   { label: '規制・ガバナンス', keywords: ['規制', '法', 'ガイドライン', 'ガバナンス', 'ポリシー', 'コンプライアンス', '管理', '統制', '契約'] },
@@ -212,9 +223,17 @@ function normalizeToArray(value) {
   return Array.isArray(value) ? value : [value];
 }
 
+function parseFeedDate(value) {
+  const date = new Date(value || Date.now());
+  return Number.isNaN(date.getTime()) ? new Date() : date;
+}
+
 function stripHtml(input) {
   return String(input || '')
     .replace(/&nbsp;|&#160;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -242,7 +261,7 @@ function normalizeItem(item) {
         ? sourceValue['#text'] || sourceValue.text || ''
         : '';
 
-  const date = new Date(item.pubDate || item.isoDate || Date.now());
+  const date = parseFeedDate(item.pubDate || item.isoDate || item.published || item.updated);
 
   const fullText = [item.title || '', item.description || '', source || ''].join(' ');
   const topic = detectTopic(fullText);
@@ -263,6 +282,52 @@ function normalizeItem(item) {
     action,
     relevanceScore: scoreForPm(fullText, topic)
   };
+}
+
+function normalizeAtomEntry(entry, feedLabel) {
+  const source = feedLabel || stripHtml(entry?.author?.name) || '不明';
+  const title = stripHtml(entry?.title || '');
+  const link = typeof entry?.link === 'string'
+    ? entry.link
+    : normalizeToArray(entry?.link).find((l) => typeof l?.href === 'string')?.href || '';
+  const summaryRaw = entry?.summary?.['#text'] || entry?.summary || entry?.content?.['#text'] || entry?.content || '';
+  const summary = summarize(summaryRaw);
+  const pubDate = parseFeedDate(entry?.published || entry?.updated);
+  const fullText = [title, summary, source].join(' ');
+  const topic = detectTopic(fullText);
+  const learn = topic === 'その他' ? buildFallbackLearn(fullText) : buildPmLearn(topic);
+  const action = topic === 'その他' ? buildFallbackAction(fullText) : buildPmAction(topic);
+  const insight = topic === 'その他' ? buildFallbackInsight(fullText) : buildPmInsight(topic);
+
+  return {
+    title,
+    link: String(link || '').trim(),
+    source,
+    pubDate,
+    summary,
+    topic,
+    insight,
+    learn,
+    action,
+    relevanceScore: scoreForPm(fullText, topic) + 5
+  };
+}
+
+function looksLikeTitleOnly(item) {
+  const title = stripHtml(item?.title || '');
+  const summary = stripHtml(item?.summary || '');
+  if (!title || !summary) {
+    return true;
+  }
+
+  const normalize = (text) => text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+  const t = normalize(title);
+  const s = normalize(summary);
+  if (!t || !s) {
+    return true;
+  }
+
+  return s === t || s.startsWith(t) || t.startsWith(s);
 }
 
 function pickLongestParagraph(paragraphs) {
@@ -348,21 +413,51 @@ async function fetchRssItems(url) {
   });
 
   const parsed = parser.parse(xml);
-  const items = normalizeToArray(parsed?.rss?.channel?.item);
-  return items.map(normalizeItem);
+  if (parsed?.rss?.channel?.item) {
+    const items = normalizeToArray(parsed.rss.channel.item);
+    return items.map(normalizeItem);
+  }
+  if (parsed?.feed?.entry) {
+    const entries = normalizeToArray(parsed.feed.entry);
+    const feedLabel = stripHtml(parsed.feed?.title || '');
+    return entries.map((entry) => normalizeAtomEntry(entry, feedLabel));
+  }
+  return [];
+}
+
+async function fetchPrimaryFeedItems() {
+  const settled = await Promise.allSettled(
+    PRIMARY_FEEDS.map(async (feed) => {
+      const items = await fetchRssItems(feed.url);
+      return items.map((item) => ({
+        ...item,
+        source: item.source === '不明' ? feed.label : item.source,
+        relevanceScore: item.relevanceScore + 4
+      }));
+    })
+  );
+
+  return settled
+    .filter((r) => r.status === 'fulfilled')
+    .flatMap((r) => r.value);
 }
 
 async function collectLatestNews(maxItems) {
   const queries = getQueriesFromEnv();
   const urls = queries.map(buildGoogleNewsRssUrl);
+  const primaryFeedItems = await fetchPrimaryFeedItems();
 
   const allResults = await Promise.allSettled(urls.map((url) => fetchRssItems(url)));
 
-  const merged = allResults
+  const mergedNews = allResults
     .filter((r) => r.status === 'fulfilled')
     .flatMap((r) => r.value)
     .filter((item) => item.title && item.link)
     .filter((item) => isWithinHours(item.pubDate, 24));
+
+  const merged = [...primaryFeedItems, ...mergedNews]
+    .filter((item) => item.title && item.link)
+    .filter((item) => isWithinHours(item.pubDate, 36));
 
   const uniqueByLink = new Map();
   for (const item of merged) {
@@ -379,7 +474,9 @@ async function collectLatestNews(maxItems) {
   });
 
   const candidateCount = Math.max(maxItems * 4, 6);
-  const candidates = deduped.slice(0, candidateCount);
+  const candidates = deduped
+    .filter((item) => !looksLikeTitleOnly(item))
+    .slice(0, candidateCount);
   const enriched = await Promise.all(candidates.map((item) => enrichWithArticleContext(item)));
 
   const reranked = enriched.sort((a, b) => {
