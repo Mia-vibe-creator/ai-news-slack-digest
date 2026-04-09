@@ -12,26 +12,24 @@ test('buildNewsBlocks creates fallback block when empty', () => {
 
 test('buildNewsBlocks includes PM summary sections', () => {
   const blocks = buildNewsBlocks({
-    theme: '今日は「AI導入時のリスク管理」が中心論点です。',
-    learnings: ['リスク評価を先に整理する'],
-    actions: ['提案書に統制観点を入れる'],
-    proposalInsights: ['安全に導入できる条件まで示す'],
-    references: [
+    items: [
       {
         title: 'Test Title',
         link: 'https://example.com',
         source: 'Example',
-        topic: 'セキュリティ'
+        topic: 'セキュリティ',
+        summary: 'これは要約です。',
+        learning: 'ここから学ぶべきことです。',
+        pmUse: '提案や要件定義にこう使います。'
       }
     ]
   });
 
   const sections = blocks.filter((b) => b.type === 'section');
-  assert.ok(sections.some((b) => b.text.text.includes('AI導入時のリスク管理')));
-  assert.ok(sections.some((b) => b.text.text.includes('今日学ぶこと')));
-  assert.ok(sections.some((b) => b.text.text.includes('仕事での活用')));
-  assert.ok(sections.some((b) => b.text.text.includes('提案観点')));
-  assert.ok(sections.some((b) => b.text.text.includes('参考ニュース')));
+  assert.ok(sections.some((b) => b.text.text.includes('ニュース 1')));
+  assert.ok(sections.some((b) => b.text.text.includes('要約: これは要約です。')));
+  assert.ok(sections.some((b) => b.text.text.includes('学び: ここから学ぶべきことです。')));
+  assert.ok(sections.some((b) => b.text.text.includes('PM活用観点: 提案や要件定義にこう使います。')));
   assert.ok(sections.some((b) => b.text.text.includes('https://example.com')));
 });
 

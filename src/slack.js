@@ -57,7 +57,7 @@ function buildConceptBlocks(concepts) {
 }
 
 function buildNewsBlocks(brief) {
-  if (!brief || !brief.references || brief.references.length === 0) {
+  if (!brief || !brief.items || brief.items.length === 0) {
     return [
       {
         type: 'section',
@@ -69,34 +69,26 @@ function buildNewsBlocks(brief) {
     ];
   }
 
-  const referenceLines = brief.references.slice(0, 3).map((item, index) =>
-    `${index + 1}. <${item.link}|${item.title}> (${item.topic || 'その他'} / ${item.source || '不明'})`
-  );
-  const filledLearnLines = (brief.learnings || []).map((line) => `- ${line}`);
-  const filledActionLines = (brief.actions || []).map((line) => `- ${line}`);
-  const filledInsightLines = (brief.proposalInsights || []).map((line) => `- ${line}`);
-
   const header = {
     type: 'section',
     text: {
       type: 'mrkdwn',
-      text: `*生成AI PMデイリーブリーフ*\n${formatDateJst(new Date())} 時点の学習サマリー`
+      text: `*生成AI PMデイリーブリーフ*\n${formatDateJst(new Date())} のニュース学習`
     }
   };
 
-  return [
-    header,
-    { type: 'divider' },
-    buildSummarySection('今日の論点', [brief.theme || '今日の主要論点を整理しました。']),
-    { type: 'divider' },
-    buildSummarySection('今日学ぶこと', filledLearnLines),
-    { type: 'divider' },
-    buildSummarySection('仕事での活用', filledActionLines),
-    { type: 'divider' },
-    buildSummarySection('提案観点', filledInsightLines),
-    { type: 'divider' },
-    buildSummarySection('参考ニュース', referenceLines)
-  ];
+  const itemSections = brief.items.slice(0, 3).flatMap((item, index) => [
+    buildSummarySection(`ニュース ${index + 1}`, [
+      `*<${item.link}|${item.title}>*`,
+      `出典: ${item.source || '不明'} | カテゴリ: ${item.topic || 'その他'}`,
+      `要約: ${item.summary}`,
+      `学び: ${item.learning}`,
+      `PM活用観点: ${item.pmUse}`
+    ]),
+    { type: 'divider' }
+  ]);
+
+  return [header, { type: 'divider' }, ...itemSections.slice(0, -1)];
 }
 
 async function postMessage({ blocks, text }) {

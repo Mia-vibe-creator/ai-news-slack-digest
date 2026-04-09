@@ -11,8 +11,7 @@ Google News RSS from Japanese generative-AI topics is collected and turned into 
 ## What is optimized for PM use
 
 - Prioritizes security, governance/regulation, use cases, and implementation topics
-- Extracts the day's themes instead of sending a long list of links
-- Synthesizes what to learn, how to use it at work, and proposal implications
+- For each of up to 3 news items, delivers a short summary, key learning, and PM use case
 - Sends a separate daily concept brief for AI / IT / UIUX fundamentals you use in client work
 - Expands concept coverage beyond your initial list to common, high-frequency industry terms
 
@@ -71,3 +70,4 @@ Workflow file:
 - Duplicate links are removed before posting.
 - If Google News RSS fetch fails for some queries, successful queries are still used.
 - News summarization uses OpenAI when `OPENAI_API_KEY` is set; otherwise it falls back to rule-based summarization.
+- When English news is included, the LLM translates it into Japanese before generating the PM brief.

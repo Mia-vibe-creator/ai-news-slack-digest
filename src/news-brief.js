@@ -1,56 +1,13 @@
-function uniqueNonEmpty(values) {
-  return [...new Set(values.filter(Boolean))];
-}
-
-function buildThemeSummary(newsItems) {
-  const topics = uniqueNonEmpty(newsItems.map((item) => item.topic).filter((topic) => topic && topic !== 'その他')).slice(0, 3);
-  if (topics.length === 0) {
-    const titleText = newsItems.map((item) => item.title).join(' ');
-    if (titleText.includes('リスク') || titleText.includes('ガバナンス') || titleText.includes('契約')) {
-      return '今日は「AI導入時のリスク管理とガバナンス整備」が中心論点です。';
-    }
-    if (titleText.includes('連携') || titleText.includes('統合') || titleText.includes('運用')) {
-      return '今日は「AIを既存業務やシステムにどう接続するか」が中心論点です。';
-    }
-    if (titleText.includes('NVIDIA') || titleText.includes('カンファレンス') || titleText.includes('発表')) {
-      return '今日は「市場トレンドを踏まえた次の実装テーマ」が中心論点です。';
-    }
-    return '今日は「生成AIを実務へどう安全に組み込むか」が中心論点です。';
-  }
-  if (topics.length === 1) {
-    return `今日は「${topics[0]}」が中心です。`;
-  }
-  return `今日は「${topics.join(' / ')}」が中心です。`;
-}
-
-function ensureLines(lines, fallback) {
-  return lines.length > 0 ? lines : [fallback];
-}
-
 function buildRuleBasedBrief(newsItems) {
-  const learnings = ensureLines(
-    uniqueNonEmpty(newsItems.map((item) => item.learn)).slice(0, 3),
-    '今日の話題を導入条件、業務価値、運用設計の3視点で読み替える'
-  );
-  const actions = ensureLines(
-    uniqueNonEmpty(newsItems.map((item) => item.action)).slice(0, 3),
-    'ニュースそのものではなく、提案論点に翻訳して社内メモ化する'
-  );
-  const proposalInsights = ensureLines(
-    uniqueNonEmpty(newsItems.map((item) => item.insight)).slice(0, 3),
-    'クライアント課題と実装条件に接続できる情報だけを残す'
-  );
-
   return {
-    theme: buildThemeSummary(newsItems),
-    learnings,
-    actions,
-    proposalInsights,
-    references: newsItems.slice(0, 3).map((item) => ({
+    items: newsItems.slice(0, 3).map((item) => ({
       title: item.title,
       link: item.link,
       source: item.source || '不明',
-      topic: item.topic || 'その他'
+      topic: item.topic || 'その他',
+      summary: item.summary,
+      learning: item.learn || 'このニュースを導入条件、業務価値、運用設計の観点で読み替える',
+      pmUse: item.action || '提案論点へ翻訳して、要件定義や提案資料に反映する'
     }))
   };
 }
@@ -66,6 +23,33 @@ function buildNewsPrompt(newsItems) {
       `summary: ${item.summary}`
     ].join('\n'))
     .join('\n\n');
+}
+
+function normalizeLlmItems(parsedItems, newsItems) {
+  if (!Array.isArray(parsedItems) || parsedItems.length === 0) {
+    return buildRuleBasedBrief(newsItems).items;
+  }
+
+  return parsedItems
+    .map((entry) => {
+      const index = Number.parseInt(entry.index, 10) - 1;
+      const sourceItem = newsItems[index];
+      if (!sourceItem) {
+        return null;
+      }
+
+      return {
+        title: entry.titleJa || sourceItem.title,
+        link: sourceItem.link,
+        source: sourceItem.source || '不明',
+        topic: sourceItem.topic || 'その他',
+        summary: entry.summaryJa || sourceItem.summary,
+        learning: entry.learning || sourceItem.learn || 'このニュースから重要ポイントを整理する',
+        pmUse: entry.pmUse || sourceItem.action || '提案や要件整理に使える論点へ翻訳する'
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 3);
 }
 
 async function summarizeNewsForPm(newsItems) {
@@ -92,8 +76,11 @@ async function summarizeNewsForPm(newsItems) {
       instructions: [
         'あなたは生成AIのコンサルタント兼プロジェクトマネージャー向けのニュース編集者です。',
         '与えられたニュース候補だけを根拠に、日本語で短く、具体的に要約してください。',
-        '単なるニュース要約ではなく、PM/提案担当者が今日学ぶべきこと、仕事でどう使うか、提案でどう語るかを抽出してください。',
-        '出力はJSONのみ。推測で事実を足さないでください。'
+        '入力に英語のタイトルや要約が含まれる場合は、まず自然な日本語へ翻訳してから解釈してください。',
+        '各ニュースごとに、500字以内の要約、学び、PMとしての活用観点を日本語で作成してください。',
+        '参考ニュース欄には、英語タイトルなら日本語訳タイトルを返してください。',
+        '出力はJSONのみ。推測で事実を足さないでください。',
+        'JSON形式: {"items":[{"index":1,"titleJa":"","summaryJa":"","learning":"","pmUse":""}]}'
       ].join('\n'),
       input: prompt,
       text: {
@@ -112,19 +99,7 @@ async function summarizeNewsForPm(newsItems) {
   const parsed = JSON.parse(data.output_text);
 
   return {
-    theme: parsed.theme || buildThemeSummary(newsItems),
-    learnings: Array.isArray(parsed.learnings) && parsed.learnings.length > 0 ? parsed.learnings.slice(0, 3) : buildRuleBasedBrief(newsItems).learnings,
-    actions: Array.isArray(parsed.actions) && parsed.actions.length > 0 ? parsed.actions.slice(0, 3) : buildRuleBasedBrief(newsItems).actions,
-    proposalInsights:
-      Array.isArray(parsed.proposalInsights) && parsed.proposalInsights.length > 0
-        ? parsed.proposalInsights.slice(0, 3)
-        : buildRuleBasedBrief(newsItems).proposalInsights,
-    references: newsItems.slice(0, 3).map((item) => ({
-      title: item.title,
-      link: item.link,
-      source: item.source || '不明',
-      topic: item.topic || 'その他'
-    }))
+    items: normalizeLlmItems(parsed.items, newsItems)
   };
 }
 
