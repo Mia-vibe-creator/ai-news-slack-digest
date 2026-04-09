@@ -56,6 +56,13 @@ function normalizeLlmItems(parsedItems, newsItems) {
         cleanField(stripKnownLabel(sourceItem.action), 300) ||
         'クライアント提案では、導入効果だけでなく運用条件とリスク統制を同時提示する。';
 
+      const fixedMarketLearning = isGenericStatement(marketLearning)
+        ? buildMarketLearningFallback(sourceItem)
+        : marketLearning;
+      const fixedConsultUse = isGenericStatement(consultUse)
+        ? buildConsultUseFallback(sourceItem)
+        : consultUse;
+
       return {
         title: cleanField(entry.titleJa, 200) || sourceItem.title,
         link: sourceItem.link,
@@ -64,8 +71,8 @@ function normalizeLlmItems(parsedItems, newsItems) {
         confidenceLevel,
         confidenceReason,
         point,
-        marketLearning,
-        consultUse
+        marketLearning: fixedMarketLearning,
+        consultUse: fixedConsultUse
       };
     })
     .filter(Boolean)
@@ -110,6 +117,14 @@ function hasMetaReportingTone(text) {
   return /(報道|記事|ニュース|メディア|取材|～を公開|を公開した)/u.test(normalized);
 }
 
+function isGenericStatement(text) {
+  const normalized = cleanField(text);
+  if (!normalized || normalized.length < 25) {
+    return true;
+  }
+  return /(重要|必要|進んでいる|有効|理解|把握|整理|反映|活用する)$/u.test(normalized);
+}
+
 function formatDateJstShort(date) {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
     return '不明';
@@ -151,6 +166,29 @@ function buildFallbackSummary(sourceItem) {
   const summary = cleanField(sourceItem?.summary, 180);
   const core = summary && summary !== what ? summary : what;
   return cleanField(`運用方針が更新され、${core}により実務への適用判断が進む。`, 60);
+}
+
+function buildMarketLearningFallback(sourceItem) {
+  const summary = cleanField(sourceItem?.summary, 140);
+  const topic = sourceItem?.topic || 'その他';
+  if (summary && summary !== '要約なし') {
+    return cleanField(`この動きは${topic}領域で、機能単体ではなく運用条件まで含めた比較が進む兆候。${summary}`, 300);
+  }
+  return `この動きは${topic}領域で、導入可否の判断軸が「精度」から「運用可能性」へ移っている兆候。`;
+}
+
+function buildConsultUseFallback(sourceItem) {
+  const topic = sourceItem?.topic || 'その他';
+  if (topic === 'セキュリティ') {
+    return '提案初回でリスク評価シートを提示し、要件定義前に権限管理・監査ログ要件を確定する。';
+  }
+  if (topic === '規制・ガバナンス') {
+    return '提案書の1ページ目に統制要件を置き、PoC前に利用規程・責任分界点の合意を取る。';
+  }
+  if (topic === '技術アップデート') {
+    return '既存構成との差分を1枚図にし、MCP/RAG等の採用有無をコストと保守性で比較提示する。';
+  }
+  return '業務フロー図に適用箇所を明記し、導入後90日で測るKPI（工数・品質・売上影響）を先に合意する。';
 }
 
 function normalizeConfidenceLevel(value) {
@@ -221,6 +259,7 @@ async function summarizeNewsForPm(newsItems) {
         '要約は60文字以内・1文で作成。メタ情報（例: 〜が報道した、〜の記事によると）は禁止。',
         '自然な文章の中で5W1Hが読み取れること。見出し形式の列挙は禁止。',
         'タイトルにない具体情報を必ず入れ、可能なら数字を1つ以上入れる。数字がない場合は成功/失敗の要因を1つ以上入れる。',
+        '要点・市場の学び・コンサル活用の3項目それぞれで、入力テキストにある具体語を最低1つ使う（例: MCP, 80%, 監査, API）。一般論のみは禁止。',
         '市場の学び（トレンド）は、市場全体の変化や競合の動きを具体的に1〜2文で書く。',
         'コンサル活用（具体策）は、特定のクライアント提案・資料・打ち手にどう使うかを具体的に1〜2文で書く。',
         '各ニュースに「確度」を付ける。値は「低」「中」「高」のいずれか。加えて20〜80文字で根拠を書く。',

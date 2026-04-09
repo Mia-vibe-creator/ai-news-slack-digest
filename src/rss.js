@@ -27,7 +27,42 @@ const PRIORITY_KEYWORDS = [
   '運用',
   '監査',
   'AIエージェント',
-  'RAG'
+  'RAG',
+  'MCP',
+  'ベンチマーク',
+  '評価',
+  '比較',
+  '推論',
+  'LTV',
+  '広告'
+];
+
+const LOW_SIGNAL_PATTERNS = [
+  'PR TIMES',
+  '共同通信PRワイヤー',
+  'Business Wire',
+  '広告',
+  'タイアップ',
+  'スポンサード'
+];
+
+const HIGH_SIGNAL_PATTERNS = [
+  'OpenAI',
+  'Anthropic',
+  'Google',
+  'Microsoft',
+  'Meta',
+  'NVIDIA',
+  'AWS',
+  'GitHub',
+  'Hugging Face',
+  'arXiv',
+  'TechCrunch',
+  'The Verge',
+  'Reuters',
+  'Bloomberg',
+  '日経',
+  'ZDNET'
 ];
 
 function countMatches(text, keywords) {
@@ -106,7 +141,9 @@ function buildPmAction(topic) {
 function scoreForPm(text, topic) {
   const priorityScore = countMatches(text, PRIORITY_KEYWORDS) * 2;
   const topicBoost = topic === 'その他' ? 0 : 3;
-  return priorityScore + topicBoost;
+  const lowSignalPenalty = countMatches(text, LOW_SIGNAL_PATTERNS) * 4;
+  const highSignalBoost = countMatches(text, HIGH_SIGNAL_PATTERNS) * 3;
+  return priorityScore + topicBoost + highSignalBoost - lowSignalPenalty;
 }
 
 function buildFallbackLearn(summaryText) {
@@ -177,6 +214,7 @@ function normalizeToArray(value) {
 
 function stripHtml(input) {
   return String(input || '')
+    .replace(/&nbsp;|&#160;/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -225,6 +263,70 @@ function normalizeItem(item) {
     action,
     relevanceScore: scoreForPm(fullText, topic)
   };
+}
+
+function pickLongestParagraph(paragraphs) {
+  if (!paragraphs || paragraphs.length === 0) {
+    return '';
+  }
+  return paragraphs
+    .map((p) => stripHtml(p))
+    .filter((p) => p.length >= 60)
+    .sort((a, b) => b.length - a.length)[0] || '';
+}
+
+function extractArticleSnippet(html) {
+  const body = String(html || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ');
+
+  const ogDescription = /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i.exec(body)?.[1] || '';
+  const description = /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i.exec(body)?.[1] || '';
+  const paragraphs = [...body.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)].map((m) => m[1]);
+  const paragraph = pickLongestParagraph(paragraphs);
+  const best = [ogDescription, description, paragraph].map((t) => stripHtml(t)).find((t) => t.length >= 60) || '';
+  return summarize(best, 420);
+}
+
+async function enrichWithArticleContext(item) {
+  try {
+    const response = await fetch(item.link, {
+      redirect: 'follow',
+      signal: AbortSignal.timeout(6000),
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; ai-news-bot/1.0)'
+      }
+    });
+
+    if (!response.ok) {
+      return item;
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('text/html')) {
+      return item;
+    }
+
+    const html = await response.text();
+    const snippet = extractArticleSnippet(html);
+    if (!snippet || snippet === '要約なし') {
+      return item;
+    }
+
+    const enrichedText = `${item.title} ${snippet} ${item.source}`;
+    const topic = detectTopic(enrichedText);
+    return {
+      ...item,
+      summary: snippet,
+      topic,
+      learn: topic === 'その他' ? buildFallbackLearn(enrichedText) : buildPmLearn(topic),
+      action: topic === 'その他' ? buildFallbackAction(enrichedText) : buildPmAction(topic),
+      insight: topic === 'その他' ? buildFallbackInsight(enrichedText) : buildPmInsight(topic),
+      relevanceScore: scoreForPm(enrichedText, topic)
+    };
+  } catch {
+    return item;
+  }
 }
 
 function isWithinHours(date, hours) {
@@ -276,7 +378,18 @@ async function collectLatestNews(maxItems) {
     return b.pubDate - a.pubDate;
   });
 
-  return deduped.slice(0, maxItems);
+  const candidateCount = Math.max(maxItems * 4, 6);
+  const candidates = deduped.slice(0, candidateCount);
+  const enriched = await Promise.all(candidates.map((item) => enrichWithArticleContext(item)));
+
+  const reranked = enriched.sort((a, b) => {
+    if (b.relevanceScore !== a.relevanceScore) {
+      return b.relevanceScore - a.relevanceScore;
+    }
+    return b.pubDate - a.pubDate;
+  });
+
+  return reranked.slice(0, maxItems);
 }
 
 module.exports = {
