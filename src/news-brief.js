@@ -6,8 +6,7 @@ function buildRuleBasedBrief(newsItems) {
       link: item.link,
       source: item.source || '不明',
       topic: item.topic || 'その他',
-      keyFacts: buildFallbackKeyFacts(item),
-      summary: cleanField(item.summary, 500),
+      summary: buildFallbackSummary(item),
       learning: item.learn || 'このニュースを導入条件、業務価値、運用設計の観点で読み替える',
       pmUse: item.action || '提案論点へ翻訳して、要件定義や提案資料に反映する'
     }))
@@ -48,9 +47,6 @@ function normalizeLlmItems(parsedItems, newsItems) {
       const confidenceReason =
         cleanField(stripKnownLabel(entry.confidenceReason), 80) ||
         fallbackConfidence.confidenceReason;
-      const keyFacts =
-        cleanField(stripKnownLabel(entry.keyFacts), 220) ||
-        buildFallbackKeyFacts(sourceItem);
 
       return {
         title: cleanField(entry.titleJa, 200) || sourceItem.title,
@@ -59,7 +55,6 @@ function normalizeLlmItems(parsedItems, newsItems) {
         topic: sourceItem.topic || 'その他',
         confidenceLevel,
         confidenceReason,
-        keyFacts,
         summary,
         learning:
           cleanField(stripKnownLabel(entry.learning), 300) ||
@@ -77,7 +72,7 @@ function normalizeLlmItems(parsedItems, newsItems) {
 
 function stripKnownLabel(text) {
   return String(text || '')
-    .replace(/^\s*(要約|学び|活用|PM活用観点|提案観点|確信度|情報確度|確度|5W1H|ファクト)\s*[:：]\s*/u, '')
+    .replace(/^\s*(要約|学び|活用|PM活用観点|提案観点|確信度|情報確度|確度)\s*[:：]\s*/u, '')
     .trim();
 }
 
@@ -120,19 +115,11 @@ function formatDateJstShort(date) {
   }).format(date);
 }
 
-function buildFallbackKeyFacts(sourceItem) {
-  return [
-    `誰が: ${sourceItem.source || '不明'}`,
-    `いつ: ${formatDateJstShort(sourceItem.pubDate)}`,
-    `何を: ${cleanField(sourceItem.title, 70) || '不明'}`,
-    'どうやって: 記事要旨からは不明',
-    '結果: 継続監視で評価'
-  ].join(' / ');
-}
-
 function chooseSummary(candidate, title, fallback, sourceItem) {
+  const narrativeFallback = buildFallbackSummary(sourceItem);
+
   if (!candidate) {
-    return fallback || buildFallbackKeyFacts(sourceItem);
+    return narrativeFallback;
   }
 
   const normalizedSummary = normalizeForCompare(candidate);
@@ -143,11 +130,26 @@ function chooseSummary(candidate, title, fallback, sourceItem) {
     normalizedTitle.startsWith(normalizedSummary)
   );
 
+  const fallbackLooksWeak = !fallback || normalizeForCompare(fallback) === normalizedTitle || looksTooAbstract(fallback);
   if (looksLikeTitleRepeat || looksTooAbstract(candidate)) {
-    return fallback || buildFallbackKeyFacts(sourceItem);
+    return fallbackLooksWeak ? narrativeFallback : fallback;
   }
 
   return candidate;
+}
+
+function buildFallbackSummary(sourceItem) {
+  const who = sourceItem?.source || '報道機関';
+  const when = formatDateJstShort(sourceItem?.pubDate);
+  const what = cleanField(sourceItem?.title, 120) || 'AI関連動向';
+  const topic = sourceItem?.topic || 'その他';
+  const summary = cleanField(sourceItem?.summary, 180);
+  const method = summary && summary !== what ? summary : `${topic}に関する取り組み内容が報じられました`;
+
+  return cleanField(
+    `${when}に${who}が、${what}を報道。記事では${method}。実務では導入条件・運用体制・成果指標を分けて評価することが重要です。`,
+    500
+  );
 }
 
 function normalizeConfidenceLevel(value) {
@@ -214,16 +216,15 @@ async function summarizeNewsForPm(newsItems) {
         'あなたは生成AIのコンサルタント兼プロジェクトマネージャー向けのニュース編集者です。',
         '与えられたニュース候補だけを根拠に、日本語で短く、具体的に要約してください。',
         '入力に英語のタイトルや要約が含まれる場合は、まず自然な日本語へ翻訳してから解釈してください。',
-        '要約はタイトルの言い換えを禁止。必ず「誰が・いつ・何を・どうやって・結果/影響」を含める。',
+        '要約はタイトルの言い換えを禁止。自然な文章の中で「誰が・いつ・何を・どうやって・結果/影響」を読み取れる形で含める（見出し形式の列挙は禁止）。',
         'タイトルにない具体情報を必ず入れ、可能なら数字を1つ以上入れる。数字がない場合は成功/失敗の要因を1つ以上入れる。',
         '情報が不足する場合は、該当箇所を「不明」と明記する。',
         '各ニュースごとに、500字以内の要約、学び、PMとしての活用観点を日本語で作成してください。',
         'PM活用観点は、AIコンサル/マーケティングコンサルの実務でどう使うかを書く。特に「提案資料化」「広告運用」「LTV改善」「要件定義」のいずれかに結び付ける。',
         '各ニュースに「情報確度」を付ける。値は「高」「中」「要検証」のいずれか。加えて20〜80文字で根拠を書く。',
-        '各ニュースに5W1Hの1行ファクトを付ける。形式: 「誰が:... / いつ:... / 何を:... / どうやって:... / 結果:...」',
         '参考ニュース欄には、英語タイトルなら日本語訳タイトルを返してください。',
         '出力はJSONのみ。推測で事実を足さないでください。',
-        'JSON形式: {"items":[{"index":1,"titleJa":"","summaryJa":"","keyFacts":"","learning":"","pmUse":"","confidenceLevel":"","confidenceReason":""}]}'
+        'JSON形式: {"items":[{"index":1,"titleJa":"","summaryJa":"","learning":"","pmUse":"","confidenceLevel":"","confidenceReason":""}]}'
       ].join('\n'),
       input: prompt,
       text: {

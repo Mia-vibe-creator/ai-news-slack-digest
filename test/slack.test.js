@@ -20,7 +20,6 @@ test('buildNewsBlocks includes PM summary sections', () => {
         topic: 'セキュリティ',
         confidenceLevel: '高',
         confidenceReason: '一次情報で確認可能',
-        keyFacts: '誰が: OpenAI / いつ: 2026/04/09 / 何を: 新機能を公開 / どうやって: API提供 / 結果: 導入速度が上がる',
         summary: 'これは要約です。',
         learning: 'ここから学ぶべきことです。',
         pmUse: '提案や要件定義にこう使います。'
@@ -31,7 +30,6 @@ test('buildNewsBlocks includes PM summary sections', () => {
   const sections = blocks.filter((b) => b.type === 'section');
   assert.ok(sections.some((b) => b.text.text.includes('ニュース 1')));
   assert.ok(sections.some((b) => b.text.text.includes('*🧭 情報確度:* [高] 一次情報で確認可能')));
-  assert.ok(sections.some((b) => b.text.text.includes('*🧩 5W1H:* 誰が: OpenAI / いつ: 2026/04/09 / 何を: 新機能を公開 / どうやって: API提供 / 結果: 導入速度が上がる')));
   assert.ok(sections.some((b) => b.text.text.includes('*📌 要約:* これは要約です。')));
   assert.ok(sections.some((b) => b.text.text.includes('*💡 学び:* ここから学ぶべきことです。')));
   assert.ok(sections.some((b) => b.text.text.includes('*📊 戦略的活用:* 提案や要件定義にこう使います。')));

@@ -22,7 +22,7 @@ function buildSummarySection(title, lines) {
 
 function stripLeadingLabel(text) {
   return String(text || '')
-    .replace(/^\s*(要約|学び|活用|PM活用観点|戦略的活用|提案観点|確信度|情報確度|確度|5W1H|ファクト)\s*[:：]\s*/u, '')
+    .replace(/^\s*(要約|学び|活用|PM活用観点|戦略的活用|提案観点|確信度|情報確度|確度)\s*[:：]\s*/u, '')
     .trim();
 }
 
@@ -88,7 +88,6 @@ function buildNewsBlocks(brief) {
       `*<${item.link}|${item.title}>*`,
       `出典: ${item.source || '不明'} | カテゴリ: ${item.topic || 'その他'}`,
       `*🧭 情報確度:* [${stripLeadingLabel(item.confidenceLevel || '中')}] ${stripLeadingLabel(item.confidenceReason || '主要メディア報道だが一次情報の確認余地あり')}`,
-      `*🧩 5W1H:* ${stripLeadingLabel(item.keyFacts || '誰が: 不明 / いつ: 不明 / 何を: 不明 / どうやって: 不明 / 結果: 不明')}`,
       `*📌 要約:* ${stripLeadingLabel(item.summary)}`,
       `*💡 学び:* ${stripLeadingLabel(item.learning)}`,
       `*📊 戦略的活用:* ${stripLeadingLabel(item.pmUse)}`
