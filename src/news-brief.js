@@ -232,22 +232,68 @@ async function summarizeNewsForPm(newsItems) {
       input: prompt,
       text: {
         format: {
-          type: 'json_object'
+          type: 'json_schema',
+          name: 'pm_news_brief',
+          schema: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['items'],
+            properties: {
+              items: {
+                type: 'array',
+                minItems: 1,
+                maxItems: 1,
+                items: {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: [
+                    'index',
+                    'titleJa',
+                    'point',
+                    'marketLearning',
+                    'consultUse',
+                    'confidenceLevel',
+                    'confidenceReason'
+                  ],
+                  properties: {
+                    index: { type: 'integer' },
+                    titleJa: { type: 'string' },
+                    point: { type: 'string' },
+                    marketLearning: { type: 'string' },
+                    consultUse: { type: 'string' },
+                    confidenceLevel: { type: 'string' },
+                    confidenceReason: { type: 'string' }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     })
   });
 
   if (!response.ok) {
-    throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+    const errorBody = await response.text();
+    console.error(`OpenAI API error: ${response.status} ${response.statusText} ${errorBody}`);
+    return buildRuleBasedBrief(newsItems);
   }
 
-  const data = await response.json();
-  const parsed = JSON.parse(data.output_text);
+  try {
+    const data = await response.json();
+    const rawText =
+      data.output_text ||
+      data.output?.[0]?.content?.[0]?.text ||
+      '';
+    const parsed = JSON.parse(rawText);
 
-  return {
-    items: normalizeLlmItems(parsed.items, newsItems)
-  };
+    return {
+      items: normalizeLlmItems(parsed.items, newsItems)
+    };
+  } catch (error) {
+    console.error('Failed to parse OpenAI response, falling back to rule-based brief.', error);
+    return buildRuleBasedBrief(newsItems);
+  }
 }
 
 module.exports = {
