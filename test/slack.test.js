@@ -29,10 +29,10 @@ test('buildNewsBlocks includes PM summary sections', () => {
 
   const sections = blocks.filter((b) => b.type === 'section');
   assert.ok(sections.some((b) => b.text.text.includes('ニュース 1')));
-  assert.ok(sections.some((b) => b.text.text.includes('情報確度: 高（一次情報で確認可能）')));
-  assert.ok(sections.some((b) => b.text.text.includes('要約: これは要約です。')));
-  assert.ok(sections.some((b) => b.text.text.includes('学び: ここから学ぶべきことです。')));
-  assert.ok(sections.some((b) => b.text.text.includes('PM活用観点: 提案や要件定義にこう使います。')));
+  assert.ok(sections.some((b) => b.text.text.includes('*🧭 情報確度:* [高] 一次情報で確認可能')));
+  assert.ok(sections.some((b) => b.text.text.includes('*📌 要約:* これは要約です。')));
+  assert.ok(sections.some((b) => b.text.text.includes('*💡 学び:* ここから学ぶべきことです。')));
+  assert.ok(sections.some((b) => b.text.text.includes('*📊 戦略的活用:* 提案や要件定義にこう使います。')));
   assert.ok(sections.some((b) => b.text.text.includes('https://example.com')));
 });
 
